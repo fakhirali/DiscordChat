@@ -26,6 +26,7 @@ if os.path.exists('chatbot_system_prompts.csv'):
 
 pprint(chatbots['epicac'])
 
+
 def send_message_to_chatbot(name, last_messages):
     if name in chatbots:
         chat_messages = [{'role': 'user', 'content': chatbots[name]}]
@@ -62,6 +63,7 @@ async def fetch_last_messages(channel, limit=20):
     # Return the last 5 messages, or all of them if there are fewer than 5
     return recent_messages[::-1][-5:]
 
+
 @bot.command(name='sys_show')
 async def sys_show(ctx):
     bot_name = 'epicac'
@@ -70,6 +72,7 @@ async def sys_show(ctx):
     else:
         response = f'The system prompt of {bot_name}:\n' + chatbots[bot_name]
     await ctx.send(response)
+
 
 @bot.event
 async def on_message(message):

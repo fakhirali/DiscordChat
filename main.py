@@ -7,6 +7,7 @@ import os
 import requests
 import pandas as pd
 from utils import truncate_message
+from pprint import pprint
 
 intents = discord.Intents.default()
 intents.messages = True
@@ -24,9 +25,8 @@ if os.path.exists('chatbot_system_prompts.csv'):
         chatbots[row['name']] = row['system_prompt']
 
 
-
 def create_chatbot(name, system_prompt):
-    chatbots[name] = system_prompt + '\n' + general_prompt
+    chatbots[name] = system_prompt
     # saving the chatbot system prompts to the csv file
     df = pd.DataFrame(list(chatbots.items()), columns=['name', 'system_prompt'])
     df.to_csv('chatbot_system_prompts.csv', index=False)
@@ -41,9 +41,10 @@ def send_message_to_chatbot(name, last_messages):
     # Here, you'd implement the logic to send a message to the specified chatbot
     # For this example, we'll just return a dummy response
     if name in chatbots:
-        chat_messages = [{'role': 'user', 'content': chatbots[name]}]
+        chat_messages = [{'role': 'user', 'content': chatbots[name] + '\n' + general_prompt}]
         for messages in last_messages:
-                chat_messages.append({'role': 'user', 'content': messages['content']})
+            chat_messages.append({'role': 'user', 'content': messages['content']})
+        pprint(chat_messages)
         url = 'http://localhost:8000/chat'
         data = chat_messages
         response = requests.post(url, json=data)
@@ -85,6 +86,7 @@ async def create_bot(ctx, bot_name, *, system_prompt):
     response = create_chatbot(bot_name, system_prompt)
     await ctx.send(response)
 
+
 @bot.command(name='sys_show')
 async def sys_show(ctx, bot_name):
     if bot_name not in chatbots:
@@ -92,6 +94,7 @@ async def sys_show(ctx, bot_name):
     else:
         response = f'The system prompt of {bot_name}:\n' + chatbots[bot_name]
     await ctx.send(response)
+
 
 @bot.event
 async def on_message(message):
@@ -106,8 +109,8 @@ async def on_message(message):
             bot_name, user_message = parts
             if bot_name in [command.name for command in bot.commands]:
                 return
-            last_messages = await fetch_last_messages(message.channel)
-            response = send_message_to_chatbot(bot_name, last_messages)
+            # last_messages = await fetch_last_messages(message.channel)
+            response = send_message_to_chatbot(bot_name, [{'content': user_message}])
             await message.channel.send(response)
 
 
