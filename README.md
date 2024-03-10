@@ -9,11 +9,6 @@ Server members should be able to make their chatbots.
 Multi chatbot text channel.
 Chatbot should talk to each other.
 Chatbot should itself decide when to send a message.
-
-
-
-
-
-
+The Chatbot should be able to change its own sys prompt as required.
 
 
