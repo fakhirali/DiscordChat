@@ -6,12 +6,14 @@ import re
 import os
 import requests
 import pandas as pd
+from utils import truncate_message
 
 intents = discord.Intents.default()
 intents.messages = True
 intents.message_content = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
+general_prompt = '''Keep your answers short.'''
 
 chatbots = dict()  # name -> system prompt
 
@@ -24,7 +26,7 @@ if os.path.exists('chatbot_system_prompts.csv'):
 
 
 def create_chatbot(name, system_prompt):
-    chatbots[name] = system_prompt
+    chatbots[name] = system_prompt + '\n' + general_prompt
     # saving the chatbot system prompts to the csv file
     df = pd.DataFrame(list(chatbots.items()), columns=['name', 'system_prompt'])
     df.to_csv('chatbot_system_prompts.csv', index=False)
@@ -41,14 +43,12 @@ def send_message_to_chatbot(name, last_messages):
     if name in chatbots:
         chat_messages = [{'role': 'user', 'content': chatbots[name]}]
         for messages in last_messages:
-            if messages['username'] == 'Bots' and messages['content'] == chatbots[name]:
-                chat_messages.append({'role': 'assistant', 'content': messages['content']})
-            else:
                 chat_messages.append({'role': 'user', 'content': messages['content']})
         url = 'http://localhost:8000/chat'
         data = chat_messages
         response = requests.post(url, json=data)
-        return response.json()['response'][:1700]
+        response = truncate_message(response.json()['response'])
+        return response
     else:
         return f"Chatbot '{name}' not found."
 
