@@ -1,15 +1,11 @@
 import discord
 from discord.ext import commands
-import asyncio
-from datetime import datetime, timedelta
 from datetime import datetime, timedelta
 import pytz
-from llama_cpp import Llama
-from preprompts import epicac_prompt
-from pprint import pprint
 import re
-import time
 import os
+import requests
+import pandas as pd
 
 intents = discord.Intents.default()
 intents.messages = True
@@ -17,13 +13,44 @@ intents.message_content = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-model = Llama(model_path='models/mistral-7b-instruct-v0.2.Q4_K_M.gguf', n_ctx=4096,
-              n_gpu_layers=-1,
-              verbose=False,
-              chat_format='mistral-instruct')
+chatbots = dict()  # name -> system prompt
 
-sys_prompt = epicac_prompt
-guild = None
+# loading the chatbot system prompts from the csv file
+if os.path.exists('chatbot_system_prompts.csv'):
+    df = pd.read_csv('chatbot_system_prompts.csv')
+    for index, row in df.iterrows():
+        chatbots[row['name']] = row['system_prompt']
+
+
+
+def create_chatbot(name, system_prompt):
+    chatbots[name] = system_prompt
+    # saving the chatbot system prompts to the csv file
+    df = pd.DataFrame(list(chatbots.items()), columns=['name', 'system_prompt'])
+    df.to_csv('chatbot_system_prompts.csv', index=False)
+    if name in chatbots:
+        return f"Chatbot '{name}' system prompt updated"
+    else:
+        return f"Chatbot '{name}' created"
+
+
+# Dummy function to simulate sending a message to a chatbot
+def send_message_to_chatbot(name, last_messages):
+    # Here, you'd implement the logic to send a message to the specified chatbot
+    # For this example, we'll just return a dummy response
+    if name in chatbots:
+        chat_messages = [{'role': 'user', 'content': chatbots[name]}]
+        for messages in last_messages:
+            if messages['username'] == 'Bots' and messages['content'] == chatbots[name]:
+                chat_messages.append({'role': 'assistant', 'content': messages['content']})
+            else:
+                chat_messages.append({'role': 'user', 'content': messages['content']})
+        url = 'http://localhost:8000/chat'
+        data = chat_messages
+        response = requests.post(url, json=data)
+        return response.json()['response'][:1700]
+    else:
+        return f"Chatbot '{name}' not found."
 
 
 def remove_text_inside_brackets(text):
@@ -32,15 +59,7 @@ def remove_text_inside_brackets(text):
     return cleaned_text
 
 
-
-@bot.event
-async def on_ready():
-    global guild
-    for g in bot.guilds:
-        guild = g
-
-
-async def fetch_last_messages(channel, limit=100):
+async def fetch_last_messages(channel, limit=20):
     # Fetch the last 'limit' messages from the channel
     messages = []
 
@@ -58,46 +77,40 @@ async def fetch_last_messages(channel, limit=100):
     ]
 
     # Return the last 5 messages, or all of them if there are fewer than 5
-    return recent_messages[::-1][-5:]
+    return recent_messages[::-1][-1:]
 
 
-async def generate_response(messages):
-    # Placeholder for your LLM-based response generation logic
-    # This should take the messages as input and return a generated response
-    chat_messages = [{'role': 'user', 'content': sys_prompt}]
-    for messages in messages:
-        if messages['username'] == 'Epicac':
-            chat_messages.append({'role': 'assistant', 'content': messages['content']})
-        else:
-            chat_messages.append({'role': 'user', 'content': messages['content']})
+@bot.command(name='sys')
+async def create_bot(ctx, bot_name, *, system_prompt):
+    response = create_chatbot(bot_name, system_prompt)
+    await ctx.send(response)
 
-
-
-    pprint(chat_messages[1:])
-    time.sleep(15)
-    response = model.create_chat_completion(chat_messages)
-    pprint(response)
-    return response['choices'][0]['message']['content'][:1500] + f'<@1215015266505855037>'
-
+@bot.command(name='sys_show')
+async def sys_show(ctx, bot_name):
+    if bot_name not in chatbots:
+        response = f"Chatbot '{bot_name}' not found."
+    else:
+        response = f'The system prompt of {bot_name}:\n' + chatbots[bot_name]
+    await ctx.send(response)
 
 @bot.event
 async def on_message(message):
-    # Ignore messages sent by the bot itself
-    if message.author == bot.user:
+    target_channel = 1215008326253813830
+    if message.author == bot.user or message.channel.id != target_channel:
         return
+    await bot.process_commands(message)
+    content = message.content
+    if content.startswith('!'):
+        parts = content[1:].split(' ', 1)
+        if len(parts) == 2:
+            bot_name, user_message = parts
+            if bot_name in [command.name for command in bot.commands]:
+                return
+            last_messages = await fetch_last_messages(message.channel)
+            response = send_message_to_chatbot(bot_name, last_messages)
+            await message.channel.send(response)
 
-    # Example command to trigger response generation
-    # if 'epicac' in message.content:
-    if bot.user in message.mentions:
-        last_messages = await fetch_last_messages(message.channel)
-        response = await generate_response(last_messages)
-        await message.channel.send(response)
 
-    # Process commands
-    # await bot.process_commands(message)
+bot_token = os.getenv("BOT")
 
-#get env var EPICAC
-epicac = os.getenv("EPICAC")
-
-bot.run(epicac)
-
+bot.run(bot_token)
