@@ -1,3 +1,4 @@
 models/
 venv/
 secrets.env
+*.ipynb

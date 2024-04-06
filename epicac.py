@@ -61,7 +61,7 @@ async def fetch_last_messages(channel, limit=20):
     ]
 
     # Return the last 5 messages, or all of them if there are fewer than 5
-    return recent_messages[::-1][-5:]
+    return recent_messages[::-1][-3:]
 
 
 @bot.command(name='sys_show')
