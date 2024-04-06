@@ -8,6 +8,9 @@ import requests
 import pandas as pd
 from utils import truncate_message
 from pprint import pprint
+from dotenv import load_dotenv
+
+load_dotenv()
 
 intents = discord.Intents.default()
 intents.messages = True

@@ -6,7 +6,7 @@ from typing import List
 app = FastAPI()
 
 model = Llama(model_path='models/mistral-7b-instruct-v0.2.Q4_K_M.gguf', n_ctx=4096,
-              n_gpu_layers=16,
+              n_gpu_layers=-1,
               verbose=True,
               chat_format='mistral-instruct')
 

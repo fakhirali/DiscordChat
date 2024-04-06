@@ -2,3 +2,4 @@ models/
 venv/
 secrets.env
 *.ipynb
+.ipynb_checkpoints
