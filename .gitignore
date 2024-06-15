@@ -1,5 +1,5 @@
 models/
 venv/
-secrets.env
+*.env
 *.ipynb
 .ipynb_checkpoints
